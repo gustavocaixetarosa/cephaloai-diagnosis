@@ -1,10 +1,22 @@
 import express from "express";
-import fetch from "node-fetch";
 import dotenv from "dotenv";
 import cors from "cors";
+import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
+const ai = new GoogleGenAI({});
 
+const gerarPrompt = (angulos) => {
+  return `
+  Gere um pre-diagnostico cefalometrico com base nestes angulos: ${JSON.stringify(angulos)}
+
+  Responda **somente em JSON** com o seguinte formato:
+{
+  "diagnostico": "Resumo do pre-diagnostico",
+  "recomendacoes: ["Sugestao 1", "Sugestao 2", "Sugestao 3", "Sugestao 4"]" -> Aqui no maximo 4
+}
+`;
+}
 const app = express();
 app.use(express.json());
 app.use(cors());
@@ -12,24 +24,21 @@ app.use(cors());
 app.post("/diagnostico", async (req, res) => {
   try {
     const angulos = req.body;
+    console.log(angulos);
 
     // chamada para a IA
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4.1-mini", // modelo mais barato e rápido
-        input: `Faça um pré-diagnóstico cefalométrico com base nestes ângulos: ${JSON.stringify(
-          angulos
-        )}`,
-      }),
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: gerarPrompt(angulos)
     });
 
-    const diagnostico = data?.output?.[0]?.content?.[0]?.text || "Não foi possível gerar diagnóstico";
-    response.json({ diagnostico });
+    //const data = await response.json();
+
+    console.log(response.text);
+
+    //const diagnostico = data?.output?.[0]?.content?.[0]?.text || "Não foi possível gerar diagnóstico";
+
+    //response.json({ diagnostico });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Erro ao gerar diagnóstico" });
